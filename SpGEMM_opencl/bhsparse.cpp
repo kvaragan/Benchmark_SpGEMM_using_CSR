@@ -229,40 +229,56 @@ int bhsparse::spgemm()
 int bhsparse::spgemm_opencl()
 {
     int err = 0;
-
+    
+#ifdef bhsparse_KERNEL_TIME
     // STAGE 1 : compute nnzCt
     _stage1_timer.start();
+#endif
     err  = _bh_sparse_opencl->compute_nnzCt();
-    err |= _bh_sparse_opencl->kernel_barrier();
-    if(err != BHSPARSE_SUCCESS) { cout << "compute_nnzCt error = " << err << endl; return err; }
-    cout << "STAGE 1 time: " << _stage1_timer.stop() << " ms." << endl;
 
+    err |= _bh_sparse_opencl->kernel_barrier();
+
+    if(err != BHSPARSE_SUCCESS) { cout << "compute_nnzCt error = " << err << endl; return err; }
+
+#ifdef bhsparse_KERNEL_TIME
+    cout << "STAGE 1 time: " << _stage1_timer.stop() << " ms." << endl;
+    
     // STAGE 2 - STEP 1 : statistics
     _stage2_timer.start();
+#endif
+    
     int nnzCt = statistics();
 
     // STAGE 2 - STEP 2 : create Ct
     err = _bh_sparse_opencl->create_Ct(nnzCt);
     if(err != BHSPARSE_SUCCESS) { cout << "create Ct error = " << err << endl; return err; }
+
+#ifdef bhsparse_KERNEL_TIME
     cout << "STAGE 2 time: " << _stage2_timer.stop() << " ms." << endl;
 
     // STAGE 3 - STEP 1 : compute nnzC and Ct
     _stage3_timer.start();
+#endif
     err = compute_nnzC_Ct_opencl();
     if(err != BHSPARSE_SUCCESS) { cout << "compute_C error = " << err << endl; return err; }
+
 
     // STAGE 3 - STEP 2 : malloc C on devices
     err  = _bh_sparse_opencl->create_C();
     if(err != BHSPARSE_SUCCESS) { cout << "create_C error = " << err << endl; return err; }
+#ifdef bhsparse_KERNEL_TIME
     cout << "STAGE 3 time: " << _stage3_timer.stop() << " ms." << endl;
 
     // STAGE 4 : copy Ct to C
     _stage4_timer.start();
+#endif
     err  = copy_Ct_to_C_opencl();
     err |= _bh_sparse_opencl->kernel_barrier();
     if(err != BHSPARSE_SUCCESS) { cout << "copy_Ct_to_C error = " << err << endl; return err; }
-    cout << "STAGE 4 time: " << _stage4_timer.stop() << " ms." << endl;
 
+#ifdef bhsparse_KERNEL_TIME
+    cout << "STAGE 4 time: " << _stage4_timer.stop() << " ms." << endl;
+#endif
     return err;
 }
 
@@ -357,7 +373,10 @@ int bhsparse::statistics()
     }
 
     nnzCt = _h_counter_sum[NUM_SEGMENTS];
+
+#ifdef bhsparse_KERNEL_TIME
     cout << "allocated size " << nnzCt << " out of full size " << _nnzCt_full << endl;
+#endif
 
     for (int i = 0; i < _m; i++)
     {

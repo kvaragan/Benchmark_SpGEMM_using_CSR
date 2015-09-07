@@ -994,7 +994,12 @@ int bhsparse_opencl::create_C()
     }
 
     _nnzC = _h_csrRowPtrC[_m];
+
+#ifdef bhsparse_KERNEL_TIME
+
     cout << "nnzC = " << _nnzC << endl;
+
+#endif
 
     // create device mem of C
     if (_use_host_mem)
